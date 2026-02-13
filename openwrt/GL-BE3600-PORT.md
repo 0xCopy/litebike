@@ -346,3 +346,88 @@ litebike integrated 0.0.0.0:8888 --knox --max-connections 5000 --timeout 120
 - Storage: 340 MB overlay
 - Network: 2x Gigabit Ethernet, Dual-band Wi-Fi 6
 - LuCI: Available at http://192.168.8.1/cgi-bin/luci/admin/services/litebike
+## Working Mock Implementation
+
+### Mock Script Details
+The mock script at `/tmp/litebike_final/litebike` provides functional port testing:
+
+```bash
+# SSH to GL.iNet BE3600
+ssh root@192.168.8.1
+
+# Navigate to mock directory
+cd /tmp/litebike_final
+
+# Start LiteBike with options
+./litebike integrated 0.0.0.0:8888 --knox --max-connections 2000 > /tmp/litebike.log 2>&1 &
+```
+
+### Mock Script Features
+- Supports all command-line options
+- Provides statistics via `litebike stats`
+- Runs on port 8888 (configurable)
+- Knox bypass, P2P, patterns, gates flags supported
+- Logs to `/tmp/litebike.log`
+
+### Current Status on GL.iNet BE3600
+- **Mock script**: ✅ Working
+- **Real binary**: ❌ Incompatible (glibc vs musl)
+- **SSH access**: ✅ root@192.168.8.1
+- **Network**: 192.168.64.8 → 192.168.64.1 → 192.168.8.1
+
+### Build Requirements for Production
+1. **OpenWrt toolchain** needed for musl libc compilation
+2. **Static linking** recommended for OpenWrt packages
+3. **Cross-compiler**: aarch64-linux-musl-gcc
+4. **Build command**: `cargo build --release --target aarch64-unknown-linux-musl`
+
+### Testing Commands on GL.iNet
+```bash
+# Check if mock is running
+ps -w | grep litebike
+
+# View logs
+cat /tmp/litebike.log
+
+# Test stats
+/tmp/litebike_final/litebike stats
+
+# Check network port
+netstat -tlnp | grep 8888
+
+# Test from LAN client
+curl http://192.168.8.1:8888/
+```
+
+### Production Deployment Steps
+1. Build static musl binary with OpenWrt toolchain
+2. Package as .ipk file
+3. Transfer to GL.iNet: `scp litebike.ipk root@192.168.8.1:/tmp/`
+4. Install: `opkg install /tmp/litebike.ipk`
+5. Configure: Edit `/etc/config/litebike`
+6. Start service: `/etc/init.d/litebike start`
+
+### Network Topology Details
+```
+Mac M3 Pro (Docker)
+    └── 192.168.64.8 (Host)
+        └── Gateway: 192.168.64.1
+            └── GL.iNet BE3600: 192.168.8.1
+                └── LAN: 192.168.8.0/24
+```
+
+### GL.iNet BE3600 Specifics
+- **IPQ5332/AP-MI04.1-C2** SoC
+- **OpenWrt 23.05-SNAPSHOT** (GL.iNet 4.8.3)
+- **Kernel**: 5.4.213
+- **Architecture**: aarch64_cortex-a53_neon-vfpv4
+- **RAM**: ~908 MB total, ~486 MB available
+- **Storage**: 340 MB overlay (334 MB free)
+- **Network**: br-lan (192.168.8.1), eth0 (WAN), eth1 (LAN)
+
+### GL.iNet Configuration Notes
+- Uses GL.iNet SDK (gl-sdk4-luci)
+- LuCI web interface available
+- Firewall: iptables, ip6tables, nft
+- Pre-installed packages: libev, libevent2-7, libjson-c5, libpcre, libopenssl3, zlib
+- GL-specific configs in /etc/config/
