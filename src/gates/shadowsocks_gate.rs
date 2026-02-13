@@ -74,12 +74,12 @@ impl ShadowsocksGate {
 
 #[async_trait]
 impl super::Gate for ShadowsocksGate {
-    async fn is_open(&self) -> bool {
+    async fn is_open(&self, _data: &[u8]) -> bool {
         *self.enabled.read()
     }
-    
+
     async fn process(&self, data: &[u8]) -> Result<Vec<u8>, String> {
-        if !self.is_open().await {
+        if !self.is_open(data).await {
             return Err("Shadowsocks gate is closed".to_string());
         }
         

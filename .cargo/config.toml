@@ -9,3 +9,6 @@ rustflags = [
   "-C", "link-arg=-isysroot=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
   "-C", "link-arg=-Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
 ]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+neon"]

@@ -4,12 +4,10 @@
 pub mod abstract_channel_provider;
 pub mod proxy_channel;
 
-pub use abstract_channel_provider::{AbstractChannelProvider, ChannelCapabilities, ChannelError};
+pub use abstract_channel_provider::{AbstractChannelProvider, ChannelCapabilities, ChannelError, ChannelStats};
 pub use proxy_channel::{ProxyChannel, ProxyChannelConfig};
 
-use async_trait::async_trait;
 use std::collections::HashMap;
-use tokio::net::TcpStream;
 
 /// Channel type enumeration
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

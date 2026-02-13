@@ -11,6 +11,7 @@ use crate::tethering_bypass::{TetheringBypass, enable_carrier_bypass};
 use crate::universal_listener::{Protocol, detect_protocol_posix};
 
 /// Knox proxy configuration
+#[derive(Debug)]
 pub struct KnoxProxyConfig {
     pub bind_addr: String,
     pub socks_port: u16,

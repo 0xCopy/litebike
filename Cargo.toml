@@ -42,7 +42,7 @@ syn = { version = "2.0.104", features = ["full"] }
 crossbeam-channel = "0.5.15"
 socket2 = "0.6.0"
 signal-hook-registry = "1.4.6"
-fsevent-sys = "4.1.0"
+# fsevent-sys is macOS-only; see [target.'cfg(target_os = "macos")'.dependencies] below
 mio = "1.0.4"
 filetime = "0.2.25"
 notify = "6.1.1"
@@ -73,6 +73,10 @@ url = "2.5.4"
 rand = "0.8"
 regex = "1.10"
 glob = "0.3"
+reqwest = "0.13.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+fsevent-sys = "4.1.0"
 
 [build-dependencies]
 cc = "1.0"

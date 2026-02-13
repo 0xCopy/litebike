@@ -46,12 +46,12 @@ impl ProxyGate {
         }
         
         // Check for HTTP methods
-        let http_methods = [
+        let http_methods: &[&[u8]] = &[
             b"GET ", b"POST ", b"PUT ", b"DELETE ",
             b"HEAD ", b"OPTIONS ", b"CONNECT ", b"TRACE ", b"PATCH "
         ];
-        
-        for method in &http_methods {
+
+        for method in http_methods {
             if data.starts_with(method) {
                 return true;
             }

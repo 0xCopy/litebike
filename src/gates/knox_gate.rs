@@ -86,15 +86,15 @@ impl KnoxGate {
     /// Detect carrier-specific traffic patterns
     fn detect_carrier_patterns(&self, data: &[u8]) -> bool {
         // Common carrier middleware patterns
-        let carrier_patterns = [
+        let carrier_patterns: &[&[u8]] = &[
             b"tether",
-            b"hotspot", 
+            b"hotspot",
             b"carrier",
             b"mobile",
             b"cellular",
         ];
-        
-        for pattern in &carrier_patterns {
+
+        for pattern in carrier_patterns {
             if data.windows(pattern.len()).any(|w| w.eq_ignore_ascii_case(pattern)) {
                 return true;
             }
@@ -105,35 +105,37 @@ impl KnoxGate {
     
     /// Apply Knox-specific processing
     async fn process_knox_traffic(&self, data: &[u8], stream: Option<TcpStream>) -> Result<Vec<u8>, GateError> {
-        let config = self.config.read();
-        
-        println!("🔒 Processing Knox traffic (bypass: {}, tethering: {})", 
-            config.enable_knox_bypass, 
-            config.enable_tethering_bypass
+        // Read config values and drop guard before any .await
+        let (enable_knox_bypass, enable_tethering_bypass, ttl_spoofing) = {
+            let config = self.config.read();
+            (config.enable_knox_bypass, config.enable_tethering_bypass, config.ttl_spoofing)
+        };
+
+        println!("🔒 Processing Knox traffic (bypass: {}, tethering: {})",
+            enable_knox_bypass,
+            enable_tethering_bypass
         );
-        
+
         // Apply TTL spoofing if tethering bypass is enabled
-        if config.enable_tethering_bypass {
-            if let Some(ref bypass) = *self.tethering_bypass.read() {
-                // TTL spoofing is applied at the network level
-                println!("📡 TTL spoofing active (TTL: {})", config.ttl_spoofing);
+        if enable_tethering_bypass {
+            let has_bypass = self.tethering_bypass.read().is_some();
+            if has_bypass {
+                println!("📡 TTL spoofing active (TTL: {})", ttl_spoofing);
             }
         }
-        
+
         // For now, pass through the data with Knox metadata
         let mut processed_data = Vec::with_capacity(data.len() + 16);
-        
+
         // Add Knox processing metadata
         processed_data.extend_from_slice(b"KNOX:");
         processed_data.extend_from_slice(&(data.len() as u32).to_le_bytes());
         processed_data.extend_from_slice(data);
-        
+
         // If we have a stream, we could apply additional processing
         if let Some(mut stream) = stream {
-            // Example: Apply Knox-specific packet modifications
             match stream.write_all(&processed_data).await {
                 Ok(()) => {
-                    // Read response if available
                     let mut response = vec![0u8; 4096];
                     match stream.read(&mut response).await {
                         Ok(n) if n > 0 => {
@@ -146,7 +148,7 @@ impl KnoxGate {
                 Err(e) => return Err(GateError::Knox(format!("Stream write failed: {}", e))),
             }
         }
-        
+
         Ok(processed_data)
     }
 }

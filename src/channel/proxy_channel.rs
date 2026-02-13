@@ -1,14 +1,16 @@
 // ProxyChannel implementation for Knox-aware connections
 // Integrates with existing Knox proxy functionality
 
-use super::{AbstractChannelProvider, ChannelCapabilities, ChannelError, ChannelStats};
+use super::{AbstractChannelProvider, ChannelCapabilities, ChannelError};
+use super::abstract_channel_provider::ChannelStats;
 use crate::knox_proxy::KnoxProxyConfig;
 use crate::tethering_bypass::TetheringBypass;
 use async_trait::async_trait;
 use tokio::net::TcpStream;
-use tokio::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use std::collections::HashMap;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
 /// Proxy channel configuration
 #[derive(Debug, Clone)]

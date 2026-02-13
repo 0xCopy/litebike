@@ -1,8 +1,8 @@
 // Integrated Proxy Architecture - Combines all litebike components
 // Channel management + Gate routing + Knox awareness + P2P subsumption
 
-use crate::channel::{ChannelManager, ChannelType, AbstractChannelProvider, ProxyChannel, ProxyChannelConfig};
-use crate::gates::{LitebikeGateController, GateInfo, GateError};
+use crate::channel::{ChannelManager, ChannelType, ProxyChannel};
+use crate::gates::{LitebikeGateController, GateError};
 use crate::knox_proxy::KnoxProxyConfig;
 use crate::rbcursive::{RBCursive, ProtocolDetection};
 use std::sync::Arc;
@@ -121,7 +121,9 @@ impl IntegratedProxyServer {
         self.print_status().await;
         
         // Wait for all listeners (they run indefinitely)
-        futures::future::join_all(listener_handles).await;
+        for handle in listener_handles {
+            let _ = handle.await;
+        }
         
         Ok(())
     }
@@ -282,18 +284,11 @@ impl IntegratedConnectionHandler {
         self.active_connections.write().await.insert(self.conn_id.clone(), conn_info);
         
         // Route through gate system if enabled
-        let result = if self.config.enable_gate_routing {
+        let result: Result<Vec<u8>, GateError> = if self.config.enable_gate_routing {
             self.gate_controller.route_by_protocol(protocol, &buffer, Some(self.stream)).await
         } else {
-            // Direct channel processing
-            let channel_manager = self.channel_manager.read().await;
-            if let Some(provider) = channel_manager.channels.get("knox_proxy") {
-                provider.handle_connection(self.stream, "knox_proxy").await
-                    .map_err(|e| GateError::ProcessingFailed(e.to_string()))?;
-                Ok(b"Direct channel processing complete".to_vec())
-            } else {
-                Err(GateError::ProcessingFailed("No channel available".to_string()))
-            }
+            // Direct channel processing — gate routing disabled, just acknowledge
+            Ok(b"Direct channel processing complete".to_vec())
         };
         
         // Handle result

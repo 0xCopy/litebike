@@ -80,6 +80,9 @@ const WAM_DISPATCH_TABLE: &[(&str, CommandAction)] = &[
 	("raw-connect", run_raw_connect),
 	("trust-host", run_trust_host),
 	("bootstrap", run_bootstrap),
+	
+	// Integrated proxy (combines all components)
+	("integrated", run_integrated),
 ];
 
 /// WAM-style unification engine for command dispatch
@@ -96,12 +99,12 @@ fn wam_dispatch(cmd: &str, subargs: &[String]) -> bool {
 }
 
 // Wrapper functions to match dispatch table function pointer signature
-fn run_route_cmd(_args: &[String]) { run_route(); }
-fn run_probe_cmd(_args: &[String]) { run_probe(); }
-fn run_domains_cmd(_args: &[String]) { run_domains(); }
-fn run_carrier_cmd(_args: &[String]) { run_carrier(); }
-fn run_scan_ports_cmd(_args: &[String]) { run_scan_ports(); }
-fn run_bonjour_discover_cmd(_args: &[String]) { run_bonjour_discover(); }
+fn run_route_cmd(args: &[String]) { run_route(args); }
+fn run_probe_cmd(args: &[String]) { run_probe(args); }
+fn run_domains_cmd(args: &[String]) { run_domains(args); }
+fn run_carrier_cmd(args: &[String]) { run_carrier(args); }
+fn run_scan_ports_cmd(args: &[String]) { run_scan_ports(args); }
+fn run_bonjour_discover_cmd(args: &[String]) { run_bonjour_discover(args); }
 
 fn main() {
 	let args: Vec<String> = env::args().collect();
@@ -1668,7 +1671,7 @@ fn run_proxy_server(args: &[String]) {
 		for (name, iface) in ifaces {
 			if glob_match(ingress_pattern, &name) && !iface.addrs.is_empty() {
 				for addr in &iface.addrs {
-					if let litebike::syscall_net::InterfaceAddr::V4(ipv4) = addr {
+					if let literbike::syscall_net::InterfaceAddr::V4(ipv4) = addr {
 						local_ip = *ipv4;
 						break;
 					}
@@ -2803,7 +2806,7 @@ fn run_bonjour_discover(_args: &[String]) {
 
 fn run_carrier_bypass(_args: &[String]) {
 	println!("carrier-bypass: enabling carrier bypass");
-	match litebike::tethering_bypass::enable_carrier_bypass() {
+	match literbike::tethering_bypass::enable_carrier_bypass() {
 		Ok(_) => println!("✅ Carrier bypass enabled"),
 		Err(e) => println!("❌ Carrier bypass failed: {}", e),
 	}
@@ -2951,8 +2954,8 @@ fn run_pattern_scan(args: &[String]) {
 	let file_path = args.get(2);
 	
 	let pattern_type = match pattern_type_str.as_str() {
-		"glob" => litebike::rbcursive::PatternType::Glob,
-		"regex" => litebike::rbcursive::PatternType::Regex,
+		"glob" => literbike::rbcursive::PatternType::Glob,
+		"regex" => literbike::rbcursive::PatternType::Regex,
 		_ => {
 			eprintln!("Invalid pattern type '{}'. Use 'glob' or 'regex'", pattern_type_str);
 			return;
@@ -3057,7 +3060,7 @@ fn run_pattern_bench(args: &[String]) {
 		let iterations = 10;
 		
 		for _ in 0..iterations {
-			let _ = rbcursive.scan_with_pattern(&test_data, pattern, litebike::rbcursive::PatternType::Regex);
+			let _ = rbcursive.scan_with_pattern(&test_data, pattern, literbike::rbcursive::PatternType::Regex);
 		}
 		
 		let elapsed = start.elapsed();
@@ -3081,7 +3084,7 @@ fn run_pattern_bench(args: &[String]) {
 		let iterations = 10;
 		
 		for _ in 0..iterations {
-			let _ = rbcursive.scan_with_pattern(&test_data, pattern, litebike::rbcursive::PatternType::Glob);
+			let _ = rbcursive.scan_with_pattern(&test_data, pattern, literbike::rbcursive::PatternType::Glob);
 		}
 		
 		let elapsed = start.elapsed();
@@ -3092,4 +3095,49 @@ fn run_pattern_bench(args: &[String]) {
 	}
 	
 	println!("\n✅ Benchmark completed!");
+}
+
+fn run_integrated(args: &[String]) {
+	let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+	
+	rt.block_on(async {
+		// Parse configuration from args
+		let mut config = literbike::IntegratedProxyConfig::default();
+		
+		// Parse bind addresses
+		if !args.is_empty() {
+			config.bind_addresses = args.iter()
+				.filter(|a| a.contains(':'))
+				.map(|s| s.to_string())
+				.collect();
+		}
+		
+		// Parse flags
+		for arg in args {
+			match arg.as_str() {
+				"--no-knox" => config.knox_config.enable_knox_bypass = false,
+				"--no-p2p" => config.enable_p2p_subsumption = false,
+				"--no-patterns" => config.enable_pattern_matching = false,
+				"--no-gates" => config.enable_gate_routing = false,
+				_ => {}
+			}
+		}
+		
+		println!("🚀 Starting LiteBike Integrated Proxy");
+		println!("   Bind addresses: {:?}", config.bind_addresses);
+		println!("   Knox bypass: {}", config.knox_config.enable_knox_bypass);
+		println!("   P2P subsumption: {}", config.enable_p2p_subsumption);
+		println!("   Pattern matching: {}", config.enable_pattern_matching);
+		println!("   Gate routing: {}", config.enable_gate_routing);
+		println!("   Max connections: {}", config.max_connections);
+		println!();
+		
+		// Create and start the integrated proxy
+		let litebike = literbike::LiteBike::with_config(config);
+		
+		if let Err(e) = litebike.start().await {
+			eprintln!("❌ Integrated proxy failed: {}", e);
+			std::process::exit(1);
+		}
+	});
 }

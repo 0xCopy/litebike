@@ -1,4 +1,6 @@
 pub mod adapters;
+pub mod dock;
+pub mod symmetrical;
 pub mod channel;
 pub mod quic;
 pub mod reactor;

@@ -120,18 +120,17 @@ impl LitebikeGateController {
     }
     
     /// Route data through appropriate gate with connection support
-    pub async fn route_with_connection(&self, data: &[u8], stream: Option<TcpStream>) -> Result<Vec<u8>, GateError> {
-        let gates = self.gates.read();
-        
+    pub async fn route_with_connection(&self, data: &[u8], mut stream: Option<TcpStream>) -> Result<Vec<u8>, GateError> {
+        // Clone gate Arcs and drop the lock before any .await
+        let gates: Vec<Arc<dyn Gate>> = self.gates.read().iter().cloned().collect();
+
         for gate in gates.iter() {
             if gate.is_open(data).await {
                 println!("🚪 Routing through gate: {} (priority: {})", gate.name(), gate.priority());
-                
-                // Try enhanced connection processing first
-                match gate.process_connection(data, stream).await {
+
+                match gate.process_connection(data, stream.take()).await {
                     Ok(result) => return Ok(result),
                     Err(GateError::ProcessingFailed(_)) => {
-                        // Fall back to legacy processing
                         if let Ok(result) = gate.process(data).await {
                             return Ok(result);
                         }
@@ -143,29 +142,29 @@ impl LitebikeGateController {
                 }
             }
         }
-        
+
         Err(GateError::ProtocolNotSupported("No gate could process data".to_string()))
     }
-    
+
     /// Route by specific protocol
     pub async fn route_by_protocol(&self, protocol: &str, data: &[u8], stream: Option<TcpStream>) -> Result<Vec<u8>, GateError> {
-        let gates = self.gates.read();
-        
+        let gates: Vec<Arc<dyn Gate>> = self.gates.read().iter().cloned().collect();
+
         for gate in gates.iter() {
             if gate.can_handle_protocol(protocol) && gate.is_open(data).await {
                 println!("🎯 Protocol-specific routing: {} -> {}", protocol, gate.name());
                 return gate.process_connection(data, stream).await;
             }
         }
-        
+
         Err(GateError::ProtocolNotSupported(format!("No gate for protocol: {}", protocol)))
     }
     
     /// List all gates with their status
     pub async fn list_gates(&self) -> Vec<GateInfo> {
-        let gates = self.gates.read();
+        let gates: Vec<Arc<dyn Gate>> = self.gates.read().iter().cloned().collect();
         let mut gate_info = Vec::new();
-        
+
         for gate in gates.iter() {
             let test_data = b"test";
             let is_open = gate.is_open(test_data).await;
