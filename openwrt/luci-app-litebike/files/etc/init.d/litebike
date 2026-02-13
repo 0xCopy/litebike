@@ -1,0 +1,81 @@
+#!/bin/sh /etc/rc.common
+# LiteBike Init Script for OpenWrt
+# Starts/stops the integrated proxy server
+
+START=99
+STOP=10
+USE_PROCD=1
+
+NAME=litebike
+PROG=/usr/bin/litebike
+
+start_service() {
+    local enabled
+    local bind
+    local port
+    local max_conn
+    local timeout
+    local knox
+    local p2p
+    local patterns
+    local gates
+    
+    config_load "$NAME"
+    config_get_bool enabled config enabled 1
+    
+    [ "$enabled" -eq 0 ] && {
+        echo "LiteBike is disabled"
+        return 0
+    }
+    
+    config_get bind config bind "0.0.0.0"
+    config_get port config port "8888"
+    config_get max_conn config max_connections "1000"
+    config_get timeout config timeout "300"
+    config_get_bool knox config knox 0
+    config_get_bool p2p config p2p 1
+    config_get_bool patterns config patterns 1
+    config_get_bool gates config gates 1
+    
+    procd_open_instance
+    procd_set_param command "$PROG" integrated "${bind}:${port}"
+    
+    [ "$knox" -eq 1 ] && procd_append_param command "--knox"
+    [ "$p2p" -eq 0 ] && procd_append_param command "--no-p2p"
+    [ "$patterns" -eq 0 ] && procd_append_param command "--no-patterns"
+    [ "$gates" -eq 0 ] && procd_append_param command "--no-gates"
+    
+    procd_append_param command "--max-connections" "$max_conn"
+    procd_append_param command "--timeout" "$timeout"
+    
+    procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param pidfile "/var/run/${NAME}.pid"
+    
+    procd_close_instance
+    
+    echo "LiteBike started on ${bind}:${port}"
+}
+
+stop_service() {
+    echo "Stopping LiteBike"
+}
+
+reload_service() {
+    stop
+    start
+}
+
+service_triggers() {
+    procd_add_reload_trigger "litebike"
+}
+
+status() {
+    if pidof litebike > /dev/null; then
+        echo "LiteBike is running (PID: $(pidof litebike))"
+        $PROG stats 2>/dev/null || echo "Stats unavailable"
+    else
+        echo "LiteBike is not running"
+    fi
+}

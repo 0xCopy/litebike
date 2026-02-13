@@ -1,0 +1,20 @@
+#!/bin/sh
+# UCI defaults for LiteBike
+# Sets up default configuration on first install
+
+uci -q batch <<EOF
+delete litebike.config
+set litebike.config=litebike
+set litebike.config.enabled='1'
+set litebike.config.bind='0.0.0.0'
+set litebike.config.port='8888'
+set litebike.config.max_connections='1000'
+set litebike.config.timeout='300'
+set litebike.config.knox='0'
+set litebike.config.p2p='1'
+set litebike.config.patterns='1'
+set litebike.config.gates='1'
+commit litebike
+EOF
+
+exit 0

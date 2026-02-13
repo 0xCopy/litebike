@@ -1,0 +1,106 @@
+<%#
+LiteBike Status Page
+Shows runtime status and statistics
+-%>
+
+<%+header%>
+
+<div class="cbi-map">
+    <h2><%:LiteBike Status%></h2>
+    <div class="cbi-section">
+        <div id="status-container">
+            <div class="cbi-section-node">
+                <table class="cbi-section-table">
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:Status%></td>
+                        <td id="status-running"><span class="loading"><%:Loading...%></span></td>
+                    </tr>
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:PID%></td>
+                        <td id="status-pid">-</td>
+                    </tr>
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:Uptime%></td>
+                        <td id="status-uptime">-</td>
+                    </tr>
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:Active Connections%></td>
+                        <td id="status-connections">-</td>
+                    </tr>
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:Memory Usage%></td>
+                        <td id="status-memory">-</td>
+                    </tr>
+                    <tr class="cbi-section-table-row">
+                        <td class="cbi-section-table-cell"><%:Version%></td>
+                        <td id="status-version">-</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="cbi-page-actions">
+            <input type="button" class="cbi-button cbi-button-apply" id="btn-start" value="<%:Start%>" onclick="litebike_start()" />
+            <input type="button" class="cbi-button cbi-button-reset" id="btn-stop" value="<%:Stop%>" onclick="litebike_stop()" />
+            <input type="button" class="cbi-button cbi-button-reload" id="btn-restart" value="<%:Restart%>" onclick="litebike_restart()" />
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+function update_status() {
+    (new XHR()).get('<%=luci.dispatcher.build_url("admin/services/litebike/api/status")%>', null,
+        function(x, data) {
+            if (x && x.status === 200) {
+                var json = JSON.parse(x.responseText);
+                if (json.running) {
+                    document.getElementById('status-running').innerHTML = '<span style="color:green">&#x2714; <%:Running%></span>';
+                    document.getElementById('status-pid').textContent = json.pid;
+                    document.getElementById('btn-start').disabled = true;
+                    document.getElementById('btn-stop').disabled = false;
+                    document.getElementById('btn-restart').disabled = false;
+                } else {
+                    document.getElementById('status-running').innerHTML = '<span style="color:red">&#x2716; <%:Not Running%></span>';
+                    document.getElementById('status-pid').textContent = '-';
+                    document.getElementById('btn-start').disabled = false;
+                    document.getElementById('btn-stop').disabled = true;
+                    document.getElementById('btn-restart').disabled = true;
+                }
+                document.getElementById('status-uptime').textContent = json.uptime || '-';
+                document.getElementById('status-connections').textContent = json.connections || '0';
+                document.getElementById('status-memory').textContent = json.memory || '-';
+                document.getElementById('status-version').textContent = json.version || 'unknown';
+            }
+        }
+    );
+}
+
+function litebike_start() {
+    (new XHR()).post('<%=luci.dispatcher.build_url("admin/services/litebike/api/start")%>', null,
+        function(x) {
+            setTimeout(update_status, 1000);
+        }
+    );
+}
+
+function litebike_stop() {
+    (new XHR()).post('<%=luci.dispatcher.build_url("admin/services/litebike/api/stop")%>', null,
+        function(x) {
+            setTimeout(update_status, 500);
+        }
+    );
+}
+
+function litebike_restart() {
+    (new XHR()).post('<%=luci.dispatcher.build_url("admin/services/litebike/api/restart")%>', null,
+        function(x) {
+            setTimeout(update_status, 1500);
+        }
+    );
+}
+
+update_status();
+setInterval(update_status, 5000);
+</script>
+
+<%+footer%>

@@ -1,0 +1,45 @@
+<%#
+LiteBike Logs Page
+Shows proxy server logs
+-%>
+
+<%+header%>
+
+<div class="cbi-map">
+    <h2><%:LiteBike Logs%></h2>
+    <div class="cbi-section">
+        <div class="cbi-section-node">
+            <pre id="log-output" style="background:#000;color:#0f0;padding:10px;max-height:400px;overflow:auto;font-family:monospace;font-size:12px;">
+Loading logs...
+            </pre>
+        </div>
+        
+        <div class="cbi-page-actions">
+            <input type="button" class="cbi-button cbi-button-refresh" value="<%:Refresh%>" onclick="refresh_logs()" />
+            <input type="button" class="cbi-button cbi-button-reset" value="<%:Clear%>" onclick="clear_logs()" />
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+function refresh_logs() {
+    document.getElementById('log-output').textContent = 'Loading...';
+    (new XHR()).get('<%=luci.dispatcher.build_url("admin/services/litebike/api/logs")%>', null,
+        function(x) {
+            if (x && x.status === 200) {
+                document.getElementById('log-output').textContent = x.responseText || 'No logs available';
+            } else {
+                document.getElementById('log-output').textContent = 'Error loading logs';
+            }
+        }
+    );
+}
+
+function clear_logs() {
+    document.getElementById('log-output').textContent = 'Logs cleared';
+}
+
+refresh_logs();
+</script>
+
+<%+footer%>
